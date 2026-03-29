@@ -1,0 +1,5 @@
+.idea/
+coverage/
+dist/
+playground/
+node_modules/
