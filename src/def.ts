@@ -2,6 +2,13 @@ import type SSH2Promise from 'ssh2-promise';
 
 export type AuthMethod = 'key' | 'password' | 'agent';
 
+export type PackageManager = 'npm' | 'yarn' | 'pnpm';
+
+export type PackageManagerConfig = {
+    manager : PackageManager;
+    productionOnly? : boolean;
+}
+
 export interface ServerConfig
 {
     host : string;
@@ -12,7 +19,7 @@ export interface ServerConfig
     password? : string;
     agent? : string;
     deployPath : string;
-    packageManager? : string;
+    packageManager? : PackageManagerConfig;
     initCmd? : string;
 }
 
@@ -83,7 +90,7 @@ export interface DeployerConfig
 {
     rootDir : string;
     servers : Record<string, ServerConfig>;
-    packageManager? : string;
+    packageManager? : PackageManagerConfig;
     files? : FilesConfig;
     symlinks? : SymlinkConfig[];
     tasks? : Record<string, TaskDef>;

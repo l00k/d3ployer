@@ -59,11 +59,15 @@ export function defineConfig (input : DeployerConfigInput) : DeployerConfig
             scenarios[key] = normalizeScenario(key, scenarioInput);
         }
     }
-
+    
     return {
-        packageManager: 'npm',
         rootDir: '',
         ...input,
+        packageManager: {
+            manager: 'npm',
+            productionOnly: true,
+            ...input.packageManager,
+        },
         servers,
         tasks,
         scenarios,

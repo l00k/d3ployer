@@ -1,7 +1,15 @@
-import { Exception } from './utils/index.js';
 import chalk from 'chalk';
 import path from 'node:path';
-import type { Placeholders, ScenarioDef, ServerConfig, TaskContext, TaskDef, TaskFn } from './def.js';
+import type {
+    PackageManagerConfig,
+    Placeholders,
+    ScenarioDef,
+    ServerConfig,
+    TaskContext,
+    TaskDef,
+    TaskFn,
+} from './def.js';
+import { Exception } from './utils/index.js';
 
 
 function buildRsyncCommand (server : ServerConfig, source : string, dest : string, files : NonNullable<TaskContext['config']['files']>) : string
@@ -75,30 +83,39 @@ const symlinksTask : TaskFn = async(ctx : TaskContext, ph : Placeholders) => {
 };
 
 const depInstallTask : TaskFn = async(ctx : TaskContext) => {
-    const pm = ctx.server.packageManager ?? ctx.config.packageManager ?? 'npm';
+    const config : PackageManagerConfig = {
+        manager: 'npm',
+        productionOnly: true,
+        ...ctx.config.packageManager,
+        ...ctx.server.packageManager,
+    };
     
-    let cmd = `${pm}`;
-    if (pm === 'npm') {
-        cmd += ' install --production';
+    let cmd = `${config.manager} install`;
+    
+    if (config.productionOnly) {
+        if (config.manager === 'npm') {
+            cmd += ' --omit=dev';
+        }
+        else if (config.manager === 'yarn') {
+            cmd += ' --production';
+        }
+        else if (config.manager === 'pnpm') {
+            cmd += ' --prod';
+        }
+        else {
+            throw new Exception(
+                `Unsupported package manager "${config.manager}"`,
+                1774823752134,
+            );
+        }
     }
-    else if (pm === 'yarn') {
-        cmd += ' install --production';
-    }
-    else if (pm === 'pnpm') {
-        cmd += ' install --prod';
-    }
-    else {
-        throw new Exception(
-            `Unsupported package manager "${pm}"`,
-            1774823752134,
-        );
-    }
+    
     await ctx.run(cmd);
 };
 
 const printDeploymentTask : TaskFn = async(ctx : TaskContext, ph : Placeholders) => {
     await ctx.run('date');
-
+    
     console.log(
         chalk.cyan('Deployment directory'),
         ph.deployPath,

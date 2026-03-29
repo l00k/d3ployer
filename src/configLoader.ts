@@ -1,7 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { defineConfig } from './config.js';
-import type { DeployerConfig, DeployerConfigInput } from './def.js';
+import type { DeployerConfig } from './def.js';
 import { Exception } from './utils/Exception.js';
 
 const CONFIG_FILENAME = 'deployer.config.ts';
@@ -41,7 +40,7 @@ export async function loadConfig (configPath? : string) : Promise<DeployerConfig
     
     const module = await import(absolutePath);
     const config : DeployerConfig = module.default ?? module;
-
+    
     config.rootDir = path.dirname(absolutePath);
     
     if (!config.servers || Object.keys(config.servers).length === 0) {
