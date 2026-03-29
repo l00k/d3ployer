@@ -242,7 +242,7 @@ function buildTaskContext (
                 {
                     ignoreError: true,
                     printOutput: false,
-                    cwd: config.rootDir,
+                    cwd: server.deployPath,
                     initCmd: server.initCmd,
                 },
             );

@@ -1,6 +1,6 @@
 {
     "name": "d3ployer",
-    "version": "0.0.3",
+    "version": "0.0.4",
     "license": "MIT",
     "type": "module",
     "bin": {
@@ -18,11 +18,7 @@
     ],
     "scripts": {
         "build": "tsc -p tsconfig.build.json",
-        "dev": "tsx src/main.ts",
-        "dev:watch": "tsx --watch src/main.ts",
-        "dev:inspect": "tsx --inspect-brk src/main.ts",
-        "script": "tsx src/script.ts",
-        "deploy": "tsx src/cli.ts",
+        "build:watch": "tsc -p tsconfig.build.json --watch",
         "test": "mocha --import=tsx",
         "test:inspect": "mocha --import=tsx --inspect-brk",
         "coverage": "c8 mocha --import=tsx",

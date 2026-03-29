@@ -1,8 +1,8 @@
+import { Exception } from './utils/index.js';
 import chalk from 'chalk';
-import { spawn } from 'node:child_process';
 import path from 'node:path';
 import type { Placeholders, ScenarioDef, ServerConfig, TaskContext, TaskDef, TaskFn } from './def.js';
-import { Exception } from './utils/Exception.js';
+
 
 function buildRsyncCommand (server : ServerConfig, source : string, dest : string, files : NonNullable<TaskContext['config']['files']>) : string
 {
@@ -36,50 +36,6 @@ function buildRsyncCommand (server : ServerConfig, source : string, dest : strin
     return args.join(' ');
 }
 
-function execRsync (command : string) : Promise<void>
-{
-    return new Promise((resolve, reject) => {
-        const child = spawn('sh', [ '-c', command ], {
-            stdio: [ 'inherit', 'pipe', 'pipe' ],
-        });
-        
-        const stderrChunks : string[] = [];
-        
-        child.stdout.on('data', (data : Buffer) => {
-            process.stdout.write(data);
-        });
-        
-        child.stderr.on('data', (data : Buffer) => {
-            stderrChunks.push(data.toString());
-            process.stderr.write(data);
-        });
-        
-        child.on('close', (code) => {
-            if (code !== 0) {
-                const details = stderrChunks.length
-                    ? `\n${stderrChunks.join('')}`
-                    : '';
-                reject(
-                    new Exception(
-                        `rsync exited with code ${code} (cmd: ${command})${details}`,
-                        1774741947570,
-                    ),
-                );
-                return;
-            }
-            resolve();
-        });
-        
-        child.on('error', (err) => {
-            reject(
-                new Exception(
-                    `rsync failed: ${command}\n${err.message}`,
-                    1774741947571,
-                ),
-            );
-        });
-    });
-}
 
 const uploadTask : TaskFn = async(ctx : TaskContext, ph : Placeholders) => {
     const files = ctx.config.files;
@@ -97,7 +53,7 @@ const uploadTask : TaskFn = async(ctx : TaskContext, ph : Placeholders) => {
     await ctx.run(`mkdir -p ${remotePath}`);
     
     const command = buildRsyncCommand(ctx.server, source, dest, files);
-    await execRsync(command);
+    await ctx.runLocal(command);
 };
 
 const symlinksTask : TaskFn = async(ctx : TaskContext, ph : Placeholders) => {
@@ -120,11 +76,29 @@ const symlinksTask : TaskFn = async(ctx : TaskContext, ph : Placeholders) => {
 
 const depInstallTask : TaskFn = async(ctx : TaskContext) => {
     const pm = ctx.server.packageManager ?? ctx.config.packageManager ?? 'npm';
-    const cmd = `${pm} install`;
+    
+    let cmd = `${pm}`;
+    if (pm === 'npm') {
+        cmd += ' install --production';
+    }
+    else if (pm === 'yarn') {
+        cmd += ' install --production';
+    }
+    else if (pm === 'pnpm') {
+        cmd += ' install --prod';
+    }
+    else {
+        throw new Exception(
+            `Unsupported package manager "${pm}"`,
+            1774823752134,
+        );
+    }
     await ctx.run(cmd);
 };
 
 const printDeploymentTask : TaskFn = async(ctx : TaskContext, ph : Placeholders) => {
+    await ctx.run('date');
+
     console.log(
         chalk.cyan('Deployment directory'),
         ph.deployPath,
@@ -177,6 +151,7 @@ export const defaultScenarios : Record<string, ScenarioDef> = {
             'symlinks',
             'depInstall',
             'pm2Setup',
+            'printDeployment',
         ],
     },
 };
