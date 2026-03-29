@@ -118,7 +118,7 @@ const symlinksTask : TaskFn = async(ctx : TaskContext, ph : Placeholders) => {
     }
 };
 
-const depInstallTask : TaskFn = async(ctx : TaskContext, ph : Placeholders) => {
+const depInstallTask : TaskFn = async(ctx : TaskContext) => {
     const pm = ctx.server.packageManager ?? ctx.config.packageManager ?? 'npm';
     const cmd = `${pm} install`;
     await ctx.run(cmd);
@@ -135,14 +135,14 @@ const printDeploymentTask : TaskFn = async(ctx : TaskContext, ph : Placeholders)
     await ctx.run('du -hd 1 .');
 };
 
-const pm2SetupTask : TaskFn = async(ctx : TaskContext, ph : Placeholders) => {
-    const pm2ConfigExists = await ctx.test('test -f pm2.config.js');
+const pm2SetupTask : TaskFn = async(ctx : TaskContext) => {
+    const pm2ConfigExists = await ctx.test('test -f pm2.config.*');
     if (!pm2ConfigExists) {
-        console.log(chalk.yellow('pm2.config.js not found, skipping PM2 setup'));
+        console.log(chalk.yellow('PM2 config not found, skipping setup'));
         return;
     }
     
-    await ctx.run('pm2 start pm2.config.js --update-env');
+    await ctx.run('pm2 start pm2.config.* --update-env');
     await ctx.run('pm2 save');
 };
 
