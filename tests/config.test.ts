@@ -70,7 +70,7 @@ describe('config builders', () => {
             });
             expect(config.tasks!.upload).to.deep.eq({
                 name: 'upload',
-                fn: customUpload,
+                task: customUpload,
             });
         });
 
