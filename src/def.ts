@@ -19,7 +19,7 @@ export interface ServerConfig
     password? : string;
     agent? : string;
     deployPath : string;
-    packageManager? : PackageManagerConfig;
+    packageManager? : PackageManagerConfig | false;
     initCmd? : string;
 }
 
@@ -70,13 +70,17 @@ export interface TaskContext
 
 export type TaskFn = (ctx : TaskContext, ph : Placeholders) => Promise<void>;
 
+export type TaskSkipFn = (ctx : TaskContext, ph : Placeholders) => Promise<boolean | string> | boolean | string;
+
 export interface TaskDef
 {
     name : string;
     fn : TaskFn;
+    skip? : TaskSkipFn;
+    config? : any;
 }
 
-export type TaskInput = TaskFn | { name : string; task : TaskFn };
+export type TaskInput = TaskFn | { name : string; task : TaskFn; skip? : TaskSkipFn };
 
 export interface ScenarioDef
 {
@@ -90,9 +94,11 @@ export interface DeployerConfig
 {
     rootDir : string;
     servers : Record<string, ServerConfig>;
-    packageManager? : PackageManagerConfig;
     files? : FilesConfig;
     symlinks? : SymlinkConfig[];
+    packageManager? : PackageManagerConfig | false;
+    pm2? : boolean;
+    dockerCompose? : boolean;
     tasks? : Record<string, TaskDef>;
     scenarios? : Record<string, ScenarioDef>;
 }

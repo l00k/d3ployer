@@ -28,7 +28,7 @@ function normalizeTask (key : string, input : TaskInput) : TaskDef
     if (typeof input === 'function') {
         return { name: key, fn: input };
     }
-    return { name: input.name, fn: input.task };
+    return { name: input.name, fn: input.task, skip: input.skip };
 }
 
 function normalizeScenario (key : string, input : ScenarioInput) : ScenarioDef

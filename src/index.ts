@@ -13,6 +13,7 @@ export type {
     TaskDef,
     TaskFn,
     TaskInput,
+    TaskSkipFn,
 } from './def.js';
 
 export { defineConfig } from './config.js';
