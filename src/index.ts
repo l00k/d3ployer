@@ -19,3 +19,5 @@ export type {
 export { defineConfig } from './config.js';
 export { runScenario, runTask } from './runner.js';
 export { loadConfig, findConfigFile } from './configLoader.js';
+export { buildRsyncCommand, downloadSkip, downloadTask } from './defaultTasks.js';
+export type { RsyncOptions } from './defaultTasks.js';

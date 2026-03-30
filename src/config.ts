@@ -26,17 +26,36 @@ function resolveServer (input : ServerConfigInput) : ServerConfig
 function normalizeTask (key : string, input : TaskInput) : TaskDef
 {
     if (typeof input === 'function') {
-        return { name: key, fn: input };
+        return {
+            name: key,
+            task: input,
+        };
     }
-    return { name: input.name, fn: input.task, skip: input.skip };
+    return {
+        name: input.name ?? key,
+        task: input.task,
+        skip: input.skip,
+        config: input.config,
+    };
 }
 
 function normalizeScenario (key : string, input : ScenarioInput) : ScenarioDef
 {
     if (Array.isArray(input)) {
-        return { name: key, tasks: input };
+        return {
+            name: key,
+            tasks: input,
+        };
     }
-    return { name: input.name, tasks: input.tasks };
+    return {
+        name: input.name,
+        tasks: input.tasks,
+    };
+}
+
+export function camelToColonCase (str : string) : string
+{
+    return str.replace(/([a-z0-9])([A-Z])/g, '$1:$2').toLowerCase();
 }
 
 export function defineConfig (input : DeployerConfigInput) : DeployerConfig
@@ -46,17 +65,30 @@ export function defineConfig (input : DeployerConfigInput) : DeployerConfig
         servers[name] = resolveServer(serverInput);
     }
     
-    const tasks : Record<string, TaskDef> = { ...defaultTasks };
+    const tasks : Record<string, TaskDef> = {};
+    for (const [ key, taskDef ] of Object.entries(defaultTasks)) {
+        tasks[camelToColonCase(key)] = taskDef;
+    }
     if (input.tasks) {
         for (const [ key, taskInput ] of Object.entries(input.tasks)) {
-            tasks[key] = normalizeTask(key, taskInput);
+            tasks[camelToColonCase(key)] = normalizeTask(key, taskInput);
         }
     }
     
-    const scenarios : Record<string, ScenarioDef> = { ...defaultScenarios };
+    const scenarios : Record<string, ScenarioDef> = {};
+    for (const [ key, scenarioDef ] of Object.entries(defaultScenarios)) {
+        scenarios[camelToColonCase(key)] = {
+            ...scenarioDef,
+            tasks: scenarioDef.tasks.map(camelToColonCase),
+        };
+    }
     if (input.scenarios) {
         for (const [ key, scenarioInput ] of Object.entries(input.scenarios)) {
-            scenarios[key] = normalizeScenario(key, scenarioInput);
+            const normalized = normalizeScenario(key, scenarioInput);
+            scenarios[camelToColonCase(key)] = {
+                ...normalized,
+                tasks: normalized.tasks.map(camelToColonCase),
+            };
         }
     }
     

@@ -66,6 +66,7 @@ export interface TaskContext
     testLocal : (cmd : string) => Promise<boolean>;
     run : (cmd : string, options? : RunOptions) => Promise<ExecResult>;
     test : (cmd : string) => Promise<boolean>;
+    taskConfig? : any;
 }
 
 export type TaskFn = (ctx : TaskContext, ph : Placeholders) => Promise<void>;
@@ -75,12 +76,17 @@ export type TaskSkipFn = (ctx : TaskContext, ph : Placeholders) => Promise<boole
 export interface TaskDef
 {
     name : string;
-    fn : TaskFn;
+    task : TaskFn;
     skip? : TaskSkipFn;
     config? : any;
 }
 
-export type TaskInput = TaskFn | { name : string; task : TaskFn; skip? : TaskSkipFn };
+export type TaskInput = TaskFn | {
+    name? : string;
+    task : TaskFn;
+    skip? : TaskSkipFn,
+    config? : any;
+};
 
 export interface ScenarioDef
 {

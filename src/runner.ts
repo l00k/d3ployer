@@ -323,9 +323,15 @@ function buildServerListr (
         ...tasks.map(([ _key, taskDef ]) => ({
             title: chalk.bgCyan.black(` ${taskDef.name} `),
             skip: taskDef.skip
-                ? (ctx : any) => taskDef.skip(ctx.taskCtx, ctx.ph)
+                ? (ctx : any) => {
+                    ctx.taskCtx.taskConfig = taskDef.config;
+                    return taskDef.skip(ctx.taskCtx, ctx.ph);
+                }
                 : undefined,
-            task: async(ctx : any) => taskDef.fn(ctx.taskCtx, ctx.ph),
+            task: async(ctx : any) => {
+                ctx.taskCtx.taskConfig = taskDef.config;
+                return taskDef.task(ctx.taskCtx, ctx.ph);
+            },
             options: listrOptions,
         })),
         {

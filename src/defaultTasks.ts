@@ -1,3 +1,4 @@
+import confirm from '@inquirer/confirm';
 import chalk from 'chalk';
 import path from 'node:path';
 import type {
@@ -14,14 +15,27 @@ import type {
 import { Exception } from './utils/index.js';
 
 
+export type RsyncOptions = {
+    delete? : boolean;
+}
+
 export function buildRsyncCommand (
     server : ServerConfig,
     source : string,
     dest : string,
     files : FilesConfig,
+    options : RsyncOptions = {},
 ) : string
 {
-    const args : string[] = [ 'rsync', '-avz', '--delete', '--progress=info2' ];
+    const {
+        delete: useDelete = true,
+    } = options;
+    
+    const args : string[] = [ 'rsync', '-avz', '--progress=info2' ];
+    
+    if (useDelete) {
+        args.push('--delete');
+    }
     
     // ssh shell
     const sshParts = [ 'ssh' ];
@@ -71,10 +85,51 @@ const uploadTask : TaskFn = async(ctx : TaskContext, ph : Placeholders) => {
     const source = localBase.endsWith('/') ? localBase : localBase + '/';
 
     await ctx.run(`mkdir -p ${remotePath}`);
+    
+    const command = buildRsyncCommand(
+        ctx.server,
+        source,
+        dest,
+        files,
+        {
+            delete: true,
+        },
+    );
+    console.log(chalk.grey(command));
 
-    const command = buildRsyncCommand(ctx.server, source, dest, files);
-    console.log(command);
+    await ctx.runLocal(command);
+};
 
+
+export const downloadSkip : TaskSkipFn = (ctx : TaskContext) => {
+    const files : FilesConfig | undefined = ctx.taskConfig;
+    return !files
+        ? 'No files configuration provided in task config'
+        : false
+        ;
+};
+
+export const downloadTask : TaskFn = async(ctx : TaskContext, ph : Placeholders) => {
+    const files : FilesConfig = ctx.taskConfig!;
+    
+    const localBase = files.basePath?.startsWith('/')
+        ? files.basePath
+        : path.resolve(ctx.config.rootDir, files.basePath ?? '.');
+    const remotePath = ph.deployPath;
+    const source = `${ctx.server.username}@${ctx.server.host}:${remotePath}/`;
+    const dest = localBase.endsWith('/') ? localBase : localBase + '/';
+    
+    const command = buildRsyncCommand(
+        ctx.server,
+        source,
+        dest,
+        files,
+        {
+            delete: false,
+        },
+    );
+    console.log(chalk.grey(command));
+    
     await ctx.runLocal(command);
 };
 
@@ -168,7 +223,7 @@ const pm2SetupTask : TaskFn = async(ctx : TaskContext) => {
 };
 
 
-const dockerComposeSetupSkip : TaskSkipFn = async(ctx : TaskContext) => {
+const dockerSetupSkip : TaskSkipFn = async(ctx : TaskContext) => {
     if (ctx.config.dockerCompose === false) {
         return 'Docker Compose disabled';
     }
@@ -179,8 +234,23 @@ const dockerComposeSetupSkip : TaskSkipFn = async(ctx : TaskContext) => {
     return false;
 };
 
-const dockerComposeSetupTask : TaskFn = async(ctx : TaskContext) => {
+const dockerSetupTask : TaskFn = async(ctx : TaskContext) => {
     await ctx.run('docker compose up -d --build --remove-orphans');
+};
+
+
+const clearTargetTask : TaskFn = async(ctx : TaskContext, ph : Placeholders) => {
+    const confirmed = await confirm({
+        message: chalk.red(`Remove entire deploy path ${ph.deployPath} on ${ctx.server.host}?`),
+        default: false,
+    });
+    
+    if (!confirmed) {
+        console.log(chalk.yellow('Skipped clearing target'));
+        return;
+    }
+    
+    await ctx.run(`rm -rf ${ph.deployPath}`);
 };
 
 
@@ -199,34 +269,43 @@ const printDeploymentTask : TaskFn = async(ctx : TaskContext, ph : Placeholders)
 
 
 export const defaultTasks : Record<string, TaskDef> = {
+    clearTarget: {
+        name: 'Clear target',
+        task: clearTargetTask,
+    },
     upload: {
         name: 'Upload files',
         skip: uploadSkip,
-        fn: uploadTask,
+        task: uploadTask,
+    },
+    download: {
+        name: 'Download files',
+        skip: downloadSkip,
+        task: downloadTask,
     },
     symlinks: {
         name: 'Create symlinks',
         skip: symlinksSkip,
-        fn: symlinksTask,
+        task: symlinksTask,
     },
     depInstall: {
         name: 'Install dependencies',
         skip: depInstallSkip,
-        fn: depInstallTask,
+        task: depInstallTask,
     },
     pm2Setup: {
         name: 'PM2 setup',
         skip: pm2SetupSkip,
-        fn: pm2SetupTask,
+        task: pm2SetupTask,
     },
-    dockerComposeSetup: {
+    dockerSetup: {
         name: 'Docker Compose setup',
-        skip: dockerComposeSetupSkip,
-        fn: dockerComposeSetupTask,
+        skip: dockerSetupSkip,
+        task: dockerSetupTask,
     },
     printDeployment: {
         name: 'Print deployment info',
-        fn: printDeploymentTask,
+        task: printDeploymentTask,
     },
 };
 
@@ -236,10 +315,10 @@ export const defaultScenarios : Record<string, ScenarioDef> = {
         tasks: [
             'upload',
             'symlinks',
-            'depInstall',
-            'pm2Setup',
-            'dockerComposeSetup',
-            'printDeployment',
+            'dep:install',
+            'pm2:setup',
+            'docker:setup',
+            'print:deployment',
         ],
     },
 };
