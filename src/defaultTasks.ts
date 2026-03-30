@@ -51,14 +51,14 @@ export function buildRsyncCommand (
     // include/exclude
     if (files.exclude) {
         for (const pattern of files.exclude) {
-            args.push(`--exclude=${pattern}`);
+            args.push(`--exclude="${pattern}"`);
         }
     }
     if (files.include) {
         for (const pattern of files.include) {
-            args.push(`--include=${pattern}`);
+            args.push(`--include="${pattern}"`);
         }
-        args.push('--exclude=*');
+        args.push('--exclude="*"');
     }
     
     args.push(source, dest);
@@ -111,6 +111,12 @@ export const downloadSkip : TaskSkipFn = (ctx : TaskContext) => {
 
 export const downloadTask : TaskFn = async(ctx : TaskContext, ph : Placeholders) => {
     const files : FilesConfig = ctx.taskConfig!;
+    if (!files) {
+        throw new Exception(
+            'No files configuration provided in task config',
+            1784523741234,
+        );
+    }
     
     const localBase = files.basePath?.startsWith('/')
         ? files.basePath
