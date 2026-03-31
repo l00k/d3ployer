@@ -77,14 +77,14 @@ const uploadSkip : TaskSkipFn = (ctx : TaskContext) => {
 
 const uploadTask : TaskFn = async(ctx : TaskContext, ph : Placeholders) => {
     const files = ctx.config.files!;
-
+    
     const localBase = files.basePath?.startsWith('/')
         ? files.basePath
         : path.resolve(ctx.config.rootDir, files.basePath ?? '.');
     const remotePath = ph.deployPath;
     const dest = `${ctx.server.username}@${ctx.server.host}:${remotePath}`;
     const source = localBase.endsWith('/') ? localBase : localBase + '/';
-
+    
     await ctx.run(`mkdir -p ${remotePath}`);
     
     const command = buildRsyncCommand(
@@ -97,7 +97,7 @@ const uploadTask : TaskFn = async(ctx : TaskContext, ph : Placeholders) => {
         },
     );
     console.log(chalk.grey(command));
-
+    
     await ctx.runLocal(command);
 };
 
@@ -151,7 +151,7 @@ const symlinksSkip : TaskSkipFn = (ctx : TaskContext) => {
 
 const symlinksTask : TaskFn = async(ctx : TaskContext, ph : Placeholders) => {
     const symlinks = ctx.config.symlinks!;
-
+    
     for (const link of symlinks) {
         const target = link.target.startsWith('/')
             ? link.target
@@ -298,13 +298,21 @@ const streamLogsTask : TaskFn = async(ctx : TaskContext) => {
     };
     const time = logsConfig.time!;
     
-    const hasPm2 = ctx.config.pm2 !== false && await ctx.test('test -f pm2.config.*');
+    const hasPm2 = ctx.config.pm2 !== false
+        && await ctx.test('test -f pm2.config.*')
+    ;
     const hasDocker = ctx.config.dockerCompose !== false
-        && await ctx.test('test -f docker-compose.yml -o -f docker-compose.yaml -o -f compose.yml -o -f compose.yaml');
+        && await ctx.test('test -f docker-compose.yml -o -f docker-compose.yaml -o -f compose.yml -o -f compose.yaml')
+    ;
     
     if (hasPm2) {
+        const pm2ConfigRaw = await ctx.run('cat pm2.config.*', { printOutput: false });
+        const nameMatch = pm2ConfigRaw.stdout.match(/name: ['"](?<name>.+?)['"]/);
+        
+        const name = nameMatch.groups?.name ?? 'all';
+        
         console.log(chalk.cyan(`Streaming PM2 logs for ${time}s...`));
-        await ctx.run(`timeout ${time} pm2 logs || true`, { printOutput: true, ignoreError: true });
+        await ctx.run(`timeout ${time} pm2 logs "${name}" || true`, { printOutput: true, ignoreError: true });
     }
     else if (hasDocker) {
         console.log(chalk.cyan(`Streaming Docker Compose logs for ${time}s...`));
