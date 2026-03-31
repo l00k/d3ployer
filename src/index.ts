@@ -3,6 +3,7 @@ export type {
     DeployerConfig,
     DeployerConfigInput,
     FilesConfig,
+    LogsConfig,
     Placeholders,
     ScenarioDef,
     ScenarioInput,

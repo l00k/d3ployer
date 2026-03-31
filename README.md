@@ -125,6 +125,16 @@ Set to `false` to disable the built-in PM2 task. When enabled (default), the `pm
 
 Set to `false` to disable the built-in Docker Compose task. When enabled (default), the `docker:setup` task auto-detects compose files and runs `docker compose up -d --build`.
 
+### `logs`
+
+Configure post-deploy log streaming. The `stream:logs` task will stream PM2 or Docker Compose logs for the configured duration. Set to `false` to disable.
+
+```ts
+logs: {
+  time: 5, // seconds to stream logs (default: 3)
+}
+```
+
 ### `tasks`
 
 Custom task functions receive a `TaskContext` and `Placeholders`:
@@ -204,10 +214,11 @@ scenarios: {
 | `docker:setup`     | Run docker compose up (auto-detects compose files)       |
 | `clear:target`     | Remove the entire deploy path (with confirmation prompt) |
 | `print:deployment` | Print deployment info (date, files, disk usage)          |
+| `stream:logs`      | Stream PM2/Docker Compose logs for a few seconds         |
 
 ### Default `deploy` scenario
 
-The built-in `deploy` scenario runs: `upload` → `symlinks` → `dep:install` → `pm2:setup` → `docker:setup` → `print:deployment`
+The built-in `deploy` scenario runs: `upload` → `symlinks` → `dep:install` → `pm2:setup` → `docker:setup` → `print:deployment` → `stream:logs`
 
 Tasks with skip conditions will be automatically skipped when not applicable (e.g. `pm2:setup` skips if no PM2 config file exists).
 

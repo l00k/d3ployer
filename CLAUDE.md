@@ -11,7 +11,7 @@ A TypeScript-based SSH deployment CLI tool. Runs tasks/scenarios against remote 
 - `src/config.ts` — `defineConfig()` helper, applies server defaults, merges defaultTasks, converts camelCase task/scenario keys to colon:case
 - `src/configLoader.ts` — walks up directory tree to find `deployer.config.ts`, dynamic-imports it
 - `src/connection.ts` — `createSSHConnection()` using ssh2-promise; supports key/password/agent auth
-- `src/defaultTasks.ts` — built-in tasks: `upload`, `download`, `symlinks`, `depInstall`, `pm2Setup`, `dockerSetup`, `clearTarget`, `printDeployment`
+- `src/defaultTasks.ts` — built-in tasks: `upload`, `download`, `symlinks`, `depInstall`, `pm2Setup`, `dockerSetup`, `clearTarget`, `printDeployment`, `streamLogs`
 - `src/def.ts` — all TypeScript types/interfaces (ServerConfig, TaskFn, TaskContext, DeployerConfig, etc.)
 - `src/runner.ts` — `runScenario()` and `runTask()` using Listr2; connects SSH per server, runs tasks sequentially
 - `src/index.ts` — public API re-exports
@@ -35,6 +35,7 @@ defineConfig({
   packageManager: { manager: 'npm' | 'yarn' | 'pnpm', productionOnly: true },
   pm2: true,
   dockerCompose: true,
+  logs: { time: 3 },
   tasks: { myTask: async (ctx, ph) => { ... } },
   scenarios: { deploy: ['upload', 'symlinks', 'myTask'] },
 })
@@ -54,10 +55,11 @@ Task keys are converted from camelCase to colon:case via `camelToColonCase()`. E
 - `docker:setup` — run docker compose up if compose file exists (skips if `dockerCompose: false` or no compose file)
 - `clear:target` — rm -rf deployPath (with interactive confirmation via @inquirer/confirm)
 - `print:deployment` — show date, directory listing, and disk usage
+- `stream:logs` — stream PM2/Docker Compose logs for a configured duration (skips if `logs: false` or no PM2/Docker detected)
 
 ## Default scenario
 
-`deploy` runs: `upload` → `symlinks` → `dep:install` → `pm2:setup` → `docker:setup` → `print:deployment`
+`deploy` runs: `upload` → `symlinks` → `dep:install` → `pm2:setup` → `docker:setup` → `print:deployment` → `stream:logs`
 
 ## Server defaults
 

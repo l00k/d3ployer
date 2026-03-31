@@ -3,6 +3,7 @@ import chalk from 'chalk';
 import path from 'node:path';
 import type {
     FilesConfig,
+    LogsConfig,
     PackageManagerConfig,
     Placeholders,
     ScenarioDef,
@@ -274,6 +275,47 @@ const printDeploymentTask : TaskFn = async(ctx : TaskContext, ph : Placeholders)
 };
 
 
+const streamLogsSkip : TaskSkipFn = async(ctx : TaskContext) => {
+    if (ctx.config.logs === false) {
+        return 'Logs streaming disabled';
+    }
+    
+    const hasPm2 = ctx.config.pm2 !== false && await ctx.test('test -f pm2.config.*');
+    const hasDocker = ctx.config.dockerCompose !== false
+        && await ctx.test('test -f docker-compose.yml -o -f docker-compose.yaml -o -f compose.yml -o -f compose.yaml');
+    
+    if (!hasPm2 && !hasDocker) {
+        return 'No PM2 or Docker Compose detected';
+    }
+    
+    return false;
+};
+
+const streamLogsTask : TaskFn = async(ctx : TaskContext) => {
+    const logsConfig : LogsConfig = {
+        time: 3,
+        ...ctx.config.logs,
+    };
+    const time = logsConfig.time!;
+    
+    const hasPm2 = ctx.config.pm2 !== false && await ctx.test('test -f pm2.config.*');
+    const hasDocker = ctx.config.dockerCompose !== false
+        && await ctx.test('test -f docker-compose.yml -o -f docker-compose.yaml -o -f compose.yml -o -f compose.yaml');
+    
+    if (hasPm2) {
+        console.log(chalk.cyan(`Streaming PM2 logs for ${time}s...`));
+        await ctx.run(`timeout ${time} pm2 logs || true`, { printOutput: true, ignoreError: true });
+    }
+    else if (hasDocker) {
+        console.log(chalk.cyan(`Streaming Docker Compose logs for ${time}s...`));
+        await ctx.run(`timeout ${time} docker compose logs --tail=50 -f || true`, {
+            printOutput: true,
+            ignoreError: true,
+        });
+    }
+};
+
+
 export const defaultTasks : Record<string, TaskDef> = {
     clearTarget: {
         name: 'Clear target',
@@ -313,6 +355,11 @@ export const defaultTasks : Record<string, TaskDef> = {
         name: 'Print deployment info',
         task: printDeploymentTask,
     },
+    streamLogs: {
+        name: 'Stream logs',
+        skip: streamLogsSkip,
+        task: streamLogsTask,
+    },
 };
 
 export const defaultScenarios : Record<string, ScenarioDef> = {
@@ -325,6 +372,7 @@ export const defaultScenarios : Record<string, ScenarioDef> = {
             'pm2:setup',
             'docker:setup',
             'print:deployment',
+            'stream:logs',
         ],
     },
 };

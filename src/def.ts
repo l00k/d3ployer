@@ -38,6 +38,11 @@ export interface SymlinkConfig
     target : string;
 }
 
+export interface LogsConfig
+{
+    time? : number;
+}
+
 export interface Placeholders
 {
     serverName : string;
@@ -105,6 +110,7 @@ export interface DeployerConfig
     packageManager? : PackageManagerConfig | false;
     pm2? : boolean;
     dockerCompose? : boolean;
+    logs? : LogsConfig | false;
     tasks? : Record<string, TaskDef>;
     scenarios? : Record<string, ScenarioDef>;
 }
