@@ -1,5 +1,6 @@
 import chalk from 'chalk';
 import { Listr } from 'listr2';
+import { CustomRenderer } from './renderer.js';
 import { spawn } from 'node:child_process';
 import type SSH2Promise from 'ssh2-promise';
 import { createSSHConnection } from './connection.js';
@@ -171,6 +172,7 @@ function execRemote (
     });
 }
 
+
 function buildPlaceholders (serverName : string, server : ServerConfig) : Placeholders
 {
     return {
@@ -179,6 +181,7 @@ function buildPlaceholders (serverName : string, server : ServerConfig) : Placeh
         timestamp: new Date().toISOString().replace(/[:.]/g, '-'),
     };
 }
+
 
 function buildTaskContext (
     serverName : string,
@@ -253,15 +256,14 @@ function buildTaskContext (
 export function resolveServers (
     config : DeployerConfig,
     serverNames? : string[],
-) : Array<[ string, ServerConfig ]>
+) : Record<string, ServerConfig>
 {
-    const allEntries = Object.entries(config.servers);
-    
     if (!serverNames || serverNames.length === 0) {
-        return allEntries;
+        return config.servers;
     }
     
-    const result : Array<[ string, ServerConfig ]> = [];
+    const result : Record<string, ServerConfig> = {};
+    
     for (const name of serverNames) {
         const server = config.servers[name];
         if (!server) {
@@ -271,27 +273,32 @@ export function resolveServers (
                 1774742073310,
             );
         }
-        result.push([ name, server ]);
+        
+        result[name] = server;
     }
+    
     return result;
 }
 
 export function resolveTaskDefs (
     taskNames : string[],
     allTasks : Record<string, TaskDef>,
-) : Array<[ string, TaskDef ]>
+) : Record<string, TaskDef>
 {
-    return taskNames.map(name => {
-        const def = allTasks[name];
-        if (!def) {
-            const available = Object.keys(allTasks).join(', ');
-            throw new Exception(
-                `Task "${name}" not found. Available: ${available}`,
-                1774742082083,
-            );
-        }
-        return [ name, def ];
-    });
+    return Object.fromEntries(
+        taskNames
+            .map(name => {
+                const def = allTasks[name];
+                if (!def) {
+                    const available = Object.keys(allTasks).join(', ');
+                    throw new Exception(
+                        `Task "${name}" not found. Available: ${available}`,
+                        1774742082083,
+                    );
+                }
+                return [ name, def ];
+            }),
+    );
 }
 
 
@@ -299,7 +306,8 @@ function buildServerListr (
     serverName : string,
     server : ServerConfig,
     config : DeployerConfig,
-    tasks : Array<[ string, TaskDef ]>,
+    tasks : Record<string, TaskDef>,
+    skipTasks : string[] = [],
 ) : Listr
 {
     return new Listr([
@@ -312,19 +320,23 @@ function buildServerListr (
                 ctx.ph = buildPlaceholders(serverName, server);
             },
         },
-        ...tasks.map(([ _key, taskDef ]) => ({
-            title: chalk.bgCyan.black(` ${taskDef.name} `),
-            skip: taskDef.skip
-                ? (ctx : any) => {
+        ...Object.entries(tasks)
+            .map(([ key, taskDef ]) => ({
+                title: taskDef.name,
+                skip: (ctx : any) => {
+                    if (skipTasks.includes(key)) {
+                        return 'Skipped via --skip';
+                    }
                     ctx.taskCtx.taskConfig = taskDef.config;
-                    return taskDef.skip(ctx.taskCtx, ctx.ph);
-                }
-                : undefined,
-            task: async(ctx : any) => {
-                ctx.taskCtx.taskConfig = taskDef.config;
-                return taskDef.task(ctx.taskCtx, ctx.ph);
-            },
-        })),
+                    return taskDef.skip
+                        ? taskDef.skip(ctx.taskCtx, ctx.ph)
+                        : false;
+                },
+                task: async(ctx : any, task : any) => {
+                    ctx.taskCtx.taskConfig = taskDef.config;
+                    return taskDef.task(ctx.taskCtx, ctx.ph, task);
+                },
+            })),
         {
             task: async(ctx) => {
                 if (ctx.ssh) {
@@ -334,14 +346,16 @@ function buildServerListr (
         },
     ], <any>{
         concurrent: false,
-        renderer: 'simple',
+        renderer: CustomRenderer,
     });
 }
+
 
 export async function runScenario (
     config : DeployerConfig,
     scenarioName : string,
     serverNames? : string[],
+    options : { skip? : string[] } = {},
 ) : Promise<void>
 {
     const scenarioDef = config.scenarios?.[scenarioName];
@@ -352,29 +366,33 @@ export async function runScenario (
             1774742090385,
         );
     }
-    
+
     const allTasks = config.tasks ?? {};
     const tasks = resolveTaskDefs(scenarioDef.tasks, allTasks);
     const servers = resolveServers(config, serverNames);
-    
+    const skipTasks = options.skip ?? [];
+
     const listr = new Listr(
-        servers.map(([ name, server ]) => ({
-            title: chalk.bgMagenta.black(` ${name} (${server.host}) `),
-            task: () : Listr => buildServerListr(name, server, config, tasks),
-        })),
+        Object.entries(servers)
+            .map(([ name, server ]) => ({
+                title: `${name} (${server.host})`,
+                task: () : Listr => buildServerListr(name, server, config, tasks, skipTasks),
+            })),
         {
             concurrent: false,
-            renderer: 'simple',
+            renderer: CustomRenderer,
         },
     );
     
     await listr.run();
 }
 
+
 export async function runTask (
     config : DeployerConfig,
     taskName : string,
     serverNames? : string[],
+    options : { skip? : string[] } = {},
 ) : Promise<void>
 {
     const allTasks = config.tasks ?? {};
@@ -388,15 +406,22 @@ export async function runTask (
     }
     
     const servers = resolveServers(config, serverNames);
-    
+    const skipTasks = options.skip ?? [];
+
     const listr = new Listr(
-        servers.map(([ name, server ]) => ({
-            title: chalk.bgMagenta.black(` ${name} (${server.host}) `),
-            task: () : Listr => buildServerListr(name, server, config, [ [ taskName, taskDef ] ]),
-        })),
+        Object.entries(servers)
+            .map(([ name, server ]) => ({
+                title: ` ${name} (${server.host}) `,
+                task: () : Listr => buildServerListr(
+                    name,
+                    server,
+                    config, { [taskName]: taskDef },
+                    skipTasks,
+                ),
+            })),
         {
             concurrent: false,
-            renderer: 'simple',
+            renderer: CustomRenderer,
         },
     );
     

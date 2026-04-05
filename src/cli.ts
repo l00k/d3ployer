@@ -9,6 +9,7 @@ const program = new Command()
     .name('deployer')
     .description('TypeScript deployment tool')
     .option('-c, --config <path>', 'path to deployer.config.ts')
+    .option('--skip <tasks>', 'comma-separated list of tasks to skip')
 ;
 
 program
@@ -16,13 +17,17 @@ program
     .argument('[servers...]', 'target server(s)')
     .action(async(name : string, servers : string[]) => {
         try {
-            const config = await loadConfig(program.opts().config);
+            const opts = program.opts();
+            const config = await loadConfig(opts.config);
             const serverList = servers.length > 0 ? servers : undefined;
+            const skipTasks = opts.skip
+                ? opts.skip.split(',').map((s : string) => s.trim()).filter(Boolean)
+                : [];
             if (config.scenarios?.[name]) {
-                await runScenario(config, name, serverList);
+                await runScenario(config, name, serverList, { skip: skipTasks });
             }
             else {
-                await runTask(config, name, serverList);
+                await runTask(config, name, serverList, { skip: skipTasks });
             }
         }
         catch (err : any) {

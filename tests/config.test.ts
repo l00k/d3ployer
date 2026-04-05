@@ -94,6 +94,7 @@ describe('config builders', () => {
                     rollback: [ 'restore' ],
                 },
             });
+            
             expect(config.scenarios!.deploy).to.deep.equal({
                 name: 'deploy',
                 tasks: [ 'build', 'upload' ],

@@ -1,8 +1,6 @@
 import { defaultsDeep } from 'lodash-es';
 import os from 'node:os';
 import type {
-    DockerComposeConfig,
-    PackageManagerConfig,
     DeployerConfig,
     DeployerConfigInput,
     ScenarioDef,
@@ -12,7 +10,8 @@ import type {
     TaskDef,
     TaskInput,
 } from './def.js';
-import { defaultScenarios, defaultTasks } from './defaultTasks.js';
+import { defaultScenarios, defaultTasks } from './tasks/index.js';
+
 
 const SERVER_DEFAULTS : Omit<ServerConfig, 'host' | 'deployPath'> = {
     port: 22,
@@ -55,11 +54,6 @@ function normalizeScenario (key : string, input : ScenarioInput) : ScenarioDef
     };
 }
 
-export function camelToColonCase (str : string) : string
-{
-    return str.replace(/([a-z0-9])([A-Z])/g, '$1:$2').toLowerCase();
-}
-
 export function defineConfig (input : DeployerConfigInput) : DeployerConfig
 {
     const servers : Record<string, ServerConfig> = {};
@@ -69,61 +63,59 @@ export function defineConfig (input : DeployerConfigInput) : DeployerConfig
     
     const tasks : Record<string, TaskDef> = {};
     for (const [ key, taskDef ] of Object.entries(defaultTasks)) {
-        tasks[camelToColonCase(key)] = taskDef;
+        tasks[key] = taskDef;
     }
     if (input.tasks) {
         for (const [ key, taskInput ] of Object.entries(input.tasks)) {
-            tasks[camelToColonCase(key)] = normalizeTask(key, taskInput);
+            tasks[key] = normalizeTask(key, taskInput);
         }
     }
     
     const scenarios : Record<string, ScenarioDef> = {};
     for (const [ key, scenarioDef ] of Object.entries(defaultScenarios)) {
-        scenarios[camelToColonCase(key)] = {
+        scenarios[key] = {
             ...scenarioDef,
-            tasks: scenarioDef.tasks.map(camelToColonCase),
+            tasks: scenarioDef.tasks,
         };
     }
     if (input.scenarios) {
         for (const [ key, scenarioInput ] of Object.entries(input.scenarios)) {
             const normalized = normalizeScenario(key, scenarioInput);
-            scenarios[camelToColonCase(key)] = {
+            scenarios[key] = {
                 ...normalized,
-                tasks: normalized.tasks.map(camelToColonCase),
+                tasks: normalized.tasks,
             };
         }
     }
     
-    let packageManager : PackageManagerConfig | false;
-    if (input.packageManager === false) {
-        packageManager = false;
-    }
-    else {
-        packageManager = {
-            manager: 'npm',
-            productionOnly: true,
-            ...input.packageManager,
-        };
-    }
-    
-    let dockerCompose : DockerComposeConfig | false;
-    if (input.dockerCompose === false) {
-        dockerCompose = false;
-    }
-    else {
-        dockerCompose = {
-            configFiles: undefined,
-            ...input.dockerCompose,
-        };
-    }
-    
-    return {
-        rootDir: '',
-        ...input,
-        packageManager,
-        dockerCompose,
-        servers,
-        tasks,
-        scenarios,
-    };
+    return defaultsDeep(
+        {
+            rootDir: '',
+            
+            ...input,
+            
+            servers,
+            tasks,
+            scenarios,
+        },
+        {
+            packageManager: {
+                manager: 'npm',
+                productionOnly: true,
+            },
+            pm2: {
+                logs: {
+                    lines: 25,
+                    time: 3,
+                },
+            },
+            dockerCompose: {
+                configFiles: undefined,
+                logs: {
+                    lines: 25,
+                    time: 3,
+                },
+            },
+        } satisfies Partial<DeployerConfig>,
+    );
 }
