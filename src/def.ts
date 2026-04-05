@@ -38,6 +38,10 @@ export interface SymlinkConfig
     target : string;
 }
 
+export type DockerComposeConfig = {
+    configFiles : string[];
+}
+
 export interface LogsConfig
 {
     time? : number;
@@ -109,7 +113,7 @@ export interface DeployerConfig
     symlinks? : SymlinkConfig[];
     packageManager? : PackageManagerConfig | false;
     pm2? : boolean;
-    dockerCompose? : boolean;
+    dockerCompose? : DockerComposeConfig | false;
     logs? : LogsConfig | false;
     tasks? : Record<string, TaskDef>;
     scenarios? : Record<string, ScenarioDef>;

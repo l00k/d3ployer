@@ -1,6 +1,8 @@
 import { defaultsDeep } from 'lodash-es';
 import os from 'node:os';
 import type {
+    DockerComposeConfig,
+    PackageManagerConfig,
     DeployerConfig,
     DeployerConfigInput,
     ScenarioDef,
@@ -92,14 +94,34 @@ export function defineConfig (input : DeployerConfigInput) : DeployerConfig
         }
     }
     
-    return {
-        rootDir: '',
-        ...input,
-        packageManager: {
+    let packageManager : PackageManagerConfig | false;
+    if (input.packageManager === false) {
+        packageManager = false;
+    }
+    else {
+        packageManager = {
             manager: 'npm',
             productionOnly: true,
             ...input.packageManager,
-        },
+        };
+    }
+    
+    let dockerCompose : DockerComposeConfig | false;
+    if (input.dockerCompose === false) {
+        dockerCompose = false;
+    }
+    else {
+        dockerCompose = {
+            configFiles: undefined,
+            ...input.dockerCompose,
+        };
+    }
+    
+    return {
+        rootDir: '',
+        ...input,
+        packageManager,
+        dockerCompose,
         servers,
         tasks,
         scenarios,

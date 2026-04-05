@@ -1,5 +1,4 @@
 import chalk from 'chalk';
-import type { ListrRenderer } from 'listr2';
 import { Listr } from 'listr2';
 import { spawn } from 'node:child_process';
 import type SSH2Promise from 'ssh2-promise';
@@ -295,13 +294,6 @@ export function resolveTaskDefs (
     });
 }
 
-const listrOptions : typeof ListrRenderer.rendererOptions = {
-    concurrent: false,
-    renderer: 'simple',
-    rendererOptions: {
-        clearOutput: true,
-    },
-};
 
 function buildServerListr (
     serverName : string,
@@ -332,7 +324,6 @@ function buildServerListr (
                 ctx.taskCtx.taskConfig = taskDef.config;
                 return taskDef.task(ctx.taskCtx, ctx.ph);
             },
-            options: listrOptions,
         })),
         {
             task: async(ctx) => {
@@ -341,7 +332,10 @@ function buildServerListr (
                 }
             },
         },
-    ], listrOptions);
+    ], <any>{
+        concurrent: false,
+        renderer: 'simple',
+    });
 }
 
 export async function runScenario (
@@ -367,9 +361,11 @@ export async function runScenario (
         servers.map(([ name, server ]) => ({
             title: chalk.bgMagenta.black(` ${name} (${server.host}) `),
             task: () : Listr => buildServerListr(name, server, config, tasks),
-            options: listrOptions,
         })),
-        listrOptions,
+        {
+            concurrent: false,
+            renderer: 'simple',
+        },
     );
     
     await listr.run();
@@ -397,9 +393,11 @@ export async function runTask (
         servers.map(([ name, server ]) => ({
             title: chalk.bgMagenta.black(` ${name} (${server.host}) `),
             task: () : Listr => buildServerListr(name, server, config, [ [ taskName, taskDef ] ]),
-            options: listrOptions,
         })),
-        listrOptions,
+        {
+            concurrent: false,
+            renderer: 'simple',
+        },
     );
     
     await listr.run();

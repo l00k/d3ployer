@@ -2,6 +2,7 @@ import confirm from '@inquirer/confirm';
 import chalk from 'chalk';
 import path from 'node:path';
 import type {
+    DockerComposeConfig,
     FilesConfig,
     LogsConfig,
     PackageManagerConfig,
@@ -230,11 +231,30 @@ const pm2SetupTask : TaskFn = async(ctx : TaskContext) => {
 };
 
 
+function buildDockerComposeTestCmd (dockerComposeConfig : DockerComposeConfig | false) : string
+{
+    if (dockerComposeConfig === false) {
+        return 'false';
+    }
+    
+    const configFiles = dockerComposeConfig.configFiles ?? [
+        'docker-compose.yml',
+        'docker-compose.yaml',
+        'compose.yml',
+        'compose.yaml',
+    ];
+    const testCmdPart = configFiles.map(f => `-f ${f}`);
+    
+    return `test ${testCmdPart.join(' -o ')}`;
+}
+
 const dockerSetupSkip : TaskSkipFn = async(ctx : TaskContext) => {
     if (ctx.config.dockerCompose === false) {
         return 'Docker Compose disabled';
     }
-    const composeExists = await ctx.test('test -f docker-compose.yml -o -f docker-compose.yaml -o -f compose.yml -o -f compose.yaml');
+    
+    const testCmd = buildDockerComposeTestCmd(ctx.config.dockerCompose);
+    const composeExists = await ctx.test(testCmd);
     if (!composeExists) {
         return 'Docker Compose config not found';
     }
@@ -242,7 +262,15 @@ const dockerSetupSkip : TaskSkipFn = async(ctx : TaskContext) => {
 };
 
 const dockerSetupTask : TaskFn = async(ctx : TaskContext) => {
-    await ctx.run('docker compose up -d --build --remove-orphans');
+    if (ctx.config.dockerCompose === false) {
+        return;
+    }
+    
+    const configFiles = ctx.config.dockerCompose?.configFiles ?? [];
+    const options = configFiles.map(f => `-f ${f}`).join(' ');
+    
+    await ctx.run(`docker compose ${options} down --remove-orphans`);
+    await ctx.run(`docker compose ${options} up -d --build`);
 };
 
 
@@ -275,14 +303,19 @@ const printDeploymentTask : TaskFn = async(ctx : TaskContext, ph : Placeholders)
 };
 
 
-const streamLogsSkip : TaskSkipFn = async(ctx : TaskContext) => {
+const logsStreamSkip : TaskSkipFn = async(ctx : TaskContext) => {
     if (ctx.config.logs === false) {
         return 'Logs streaming disabled';
     }
     
     const hasPm2 = ctx.config.pm2 !== false && await ctx.test('test -f pm2.config.*');
-    const hasDocker = ctx.config.dockerCompose !== false
-        && await ctx.test('test -f docker-compose.yml -o -f docker-compose.yaml -o -f compose.yml -o -f compose.yaml');
+    
+    let hasDocker = false;
+    
+    if (ctx.config.dockerCompose) {
+        const testCmd = buildDockerComposeTestCmd(ctx.config.dockerCompose);
+        hasDocker = await ctx.test(testCmd);
+    }
     
     if (!hasPm2 && !hasDocker) {
         return 'No PM2 or Docker Compose detected';
@@ -291,7 +324,7 @@ const streamLogsSkip : TaskSkipFn = async(ctx : TaskContext) => {
     return false;
 };
 
-const streamLogsTask : TaskFn = async(ctx : TaskContext) => {
+const logsStreamTask : TaskFn = async(ctx : TaskContext) => {
     const logsConfig : LogsConfig = {
         time: 3,
         ...ctx.config.logs,
@@ -301,9 +334,11 @@ const streamLogsTask : TaskFn = async(ctx : TaskContext) => {
     const hasPm2 = ctx.config.pm2 !== false
         && await ctx.test('test -f pm2.config.*')
     ;
-    const hasDocker = ctx.config.dockerCompose !== false
-        && await ctx.test('test -f docker-compose.yml -o -f docker-compose.yaml -o -f compose.yml -o -f compose.yaml')
-    ;
+    let hasDocker = false;
+    if (ctx.config.dockerCompose !== false) {
+        const testCmd = buildDockerComposeTestCmd(ctx.config.dockerCompose);
+        hasDocker = await ctx.test(testCmd);
+    }
     
     if (hasPm2) {
         const pm2ConfigRaw = await ctx.run('cat pm2.config.*', { printOutput: false });
@@ -314,9 +349,12 @@ const streamLogsTask : TaskFn = async(ctx : TaskContext) => {
         console.log(chalk.cyan(`Streaming PM2 logs for ${time}s...`));
         await ctx.run(`timeout ${time} pm2 logs "${name}" || true`, { printOutput: true, ignoreError: true });
     }
-    else if (hasDocker) {
+    else if (hasDocker && ctx.config.dockerCompose) {
+        const configFiles = ctx.config.dockerCompose.configFiles ?? [];
+        const options = configFiles.map(f => `-f ${f}`).join(' ');
+        
         console.log(chalk.cyan(`Streaming Docker Compose logs for ${time}s...`));
-        await ctx.run(`timeout ${time} docker compose logs --tail=50 -f || true`, {
+        await ctx.run(`timeout ${time} docker compose ${options} logs --tail=10 -f || true`, {
             printOutput: true,
             ignoreError: true,
         });
@@ -363,10 +401,10 @@ export const defaultTasks : Record<string, TaskDef> = {
         name: 'Print deployment info',
         task: printDeploymentTask,
     },
-    streamLogs: {
-        name: 'Stream logs',
-        skip: streamLogsSkip,
-        task: streamLogsTask,
+    logsStream: {
+        name: 'Logs stream',
+        skip: logsStreamSkip,
+        task: logsStreamTask,
     },
 };
 
@@ -380,7 +418,7 @@ export const defaultScenarios : Record<string, ScenarioDef> = {
             'pm2:setup',
             'docker:setup',
             'print:deployment',
-            'stream:logs',
+            'logs:stream',
         ],
     },
 };
