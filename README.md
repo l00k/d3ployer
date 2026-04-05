@@ -37,7 +37,7 @@ export default defineConfig({
     },
   },
   scenarios: {
-    deploy: ['upload', 'symlinks', 'dep:install', 'restart'],
+    deploy: ['upload', 'symlinks', 'install:packages', 'restart'],
   },
 });
 ```
@@ -45,10 +45,11 @@ export default defineConfig({
 Then deploy:
 
 ```bash
-dpl deploy           # run "deploy" scenario on all servers
-dpl deploy prod      # run on specific server(s)
-dpl upload           # run a single task
-dpl list             # list available scenarios, tasks, and servers
+dpl deploy                          # run "deploy" scenario on all servers
+dpl deploy prod                     # run on specific server(s)
+dpl upload                          # run a single task
+dpl deploy --skip install:packages  # skip specific tasks (comma-separated)
+dpl list                            # list available scenarios, tasks, and servers
 ```
 
 ## CLI
@@ -59,6 +60,7 @@ dpl list                   List scenarios, tasks, and servers
 
 Options:
   -c, --config <path>      Path to deployer.config.ts
+  --skip <tasks>           Comma-separated list of tasks to skip
 ```
 
 If `<name>` matches a scenario, it runs all tasks in that scenario sequentially. Otherwise it runs the matching task directly.
@@ -119,20 +121,33 @@ packageManager: {
 
 ### `pm2`
 
-Set to `false` to disable the built-in PM2 task. When enabled (default), the `pm2:setup` task auto-detects `pm2.config.*` files and runs `pm2 start`.
+Configure PM2 integration. Set to `false` to disable entirely. The `setup:pm2` task auto-detects `pm2.config.*` files. Post-deploy log streaming is configured via `pm2.logs`.
+
+```ts
+pm2: {
+  logs: {
+    time: 5,   // seconds to stream (default: 3)
+    lines: 50, // log lines to show (default: 25)
+  },
+  // logs: false  — disable log streaming only
+}
+// pm2: false    — disable PM2 entirely
+```
 
 ### `dockerCompose`
 
-Set to `false` to disable the built-in Docker Compose task. When enabled (default), the `docker:setup` task auto-detects compose files and runs `docker compose up -d --build`.
-
-### `logs`
-
-Configure post-deploy log streaming. The `stream:logs` task will stream PM2 or Docker Compose logs for the configured duration. Set to `false` to disable.
+Configure Docker Compose integration. Set to `false` to disable entirely. The `setup:docker` task auto-detects compose files. Specify custom compose files via `configFiles`.
 
 ```ts
-logs: {
-  time: 5, // seconds to stream logs (default: 3)
+dockerCompose: {
+  configFiles: ['docker-compose.prod.yml'], // optional, defaults to auto-detect
+  logs: {
+    time: 5,   // seconds to stream (default: 3)
+    lines: 50, // log lines to show (default: 25)
+  },
+  // logs: false  — disable log streaming only
 }
+// dockerCompose: false  — disable Docker Compose entirely
 ```
 
 ### `tasks`
@@ -141,7 +156,7 @@ Custom task functions receive a `TaskContext` and `Placeholders`:
 
 ```ts
 tasks: {
-  migrate: async (ctx, ph) => {
+  migrate: async (ctx, ph, task) => {
     await ctx.run('npm run migrate');
   },
 }
@@ -154,7 +169,7 @@ tasks: {
   myTask: {
     name: 'My Task',
     skip: async (ctx) => !someCondition ? 'Reason to skip' : false,
-    task: async (ctx, ph) => { /* ... */ },
+    task: async (ctx, ph, task) => { /* ... */ },
     config: { /* passed as ctx.taskConfig */ },
   },
 }
@@ -187,7 +202,7 @@ Named sequences of tasks:
 
 ```ts
 scenarios: {
-  deploy: ['upload', 'symlinks', 'dep:install', 'restart'],
+  deploy: ['upload', 'symlinks', 'install:packages', 'restart'],
 }
 ```
 
@@ -197,30 +212,31 @@ Or as objects with a custom name:
 scenarios: {
   deploy: {
     name: 'Deploy',
-    tasks: ['upload', 'symlinks', 'dep:install', 'restart'],
+    tasks: ['upload', 'symlinks', 'install:packages', 'restart'],
   },
 }
 ```
 
 ## Built-in tasks
 
-| Task               | Description                                              |
-| ------------------ | -------------------------------------------------------- |
-| `upload`           | Rsync files to the remote server                         |
-| `download`         | Rsync files from the remote server (uses task config)    |
-| `symlinks`         | Create configured symlinks on the remote server          |
-| `dep:install`      | Install dependencies via npm/yarn/pnpm                   |
-| `pm2:setup`        | Start/restart PM2 processes (auto-detects pm2.config.*)  |
-| `docker:setup`     | Run docker compose up (auto-detects compose files)       |
-| `clear:target`     | Remove the entire deploy path (with confirmation prompt) |
-| `print:deployment` | Print deployment info (date, files, disk usage)          |
-| `stream:logs`      | Stream PM2/Docker Compose logs for a few seconds         |
+| Task                | Description                                              |
+| ------------------- | -------------------------------------------------------- |
+| `upload`            | Rsync files to the remote server                         |
+| `download`          | Rsync files from the remote server (uses task config)    |
+| `symlinks`          | Create configured symlinks on the remote server          |
+| `install:packages`  | Install dependencies via npm/yarn/pnpm                   |
+| `setup:pm2`         | Start/restart PM2 processes (auto-detects pm2.config.*)  |
+| `setup:docker`      | Run docker compose up (auto-detects compose files)       |
+| `clear:target`      | Remove the entire deploy path (with confirmation prompt) |
+| `print:deployment`  | Print deployment info (date, files, disk usage)          |
+| `print:logs:pm2`    | Stream PM2 logs for a configured duration                |
+| `print:logs:docker` | Stream Docker Compose logs for a configured duration     |
 
 ### Default `deploy` scenario
 
-The built-in `deploy` scenario runs: `upload` → `symlinks` → `dep:install` → `pm2:setup` → `docker:setup` → `print:deployment` → `stream:logs`
+The built-in `deploy` scenario runs: `upload` → `symlinks` → `install:packages` → `setup:pm2` → `setup:docker` → `print:deployment` → `print:logs:pm2` → `print:logs:docker`
 
-Tasks with skip conditions will be automatically skipped when not applicable (e.g. `pm2:setup` skips if no PM2 config file exists).
+Tasks with skip conditions will be automatically skipped when not applicable (e.g. `setup:pm2` skips if no PM2 config file exists).
 
 ## Requirements
 
