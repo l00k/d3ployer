@@ -10,8 +10,8 @@ import { symlinksSkip, symlinksTask } from './symlinks.js';
 import { uploadSkip, uploadTask } from './upload.js';
 
 
-export { buildRsyncCommand } from './upload.js';
-export type { RsyncOptions } from './upload.js';
+export { buildRsyncCommand } from './helpers/rsync.js';
+export type { RsyncOptions } from './helpers/rsync.js';
 export { downloadSkip, downloadTask } from './download.js';
 
 

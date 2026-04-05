@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 import type { LogsConfig, TaskContext, TaskFn, TaskSkipFn } from '../def.js';
-import { buildDockerComposeTestCmd } from './setupDocker.js';
+import { buildDockerComposeTestCmd } from './helpers/docker.js';
 
 
 export const printLogsPm2Skip : TaskSkipFn = async(ctx : TaskContext) => {
