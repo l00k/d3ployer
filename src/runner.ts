@@ -375,7 +375,7 @@ export async function runScenario (
     const listr = new Listr(
         Object.entries(servers)
             .map(([ name, server ]) => ({
-                title: `${name} (${server.host})`,
+                title: `${scenarioDef.name} to ${name} (${server.host})`,
                 task: () : Listr => buildServerListr(name, server, config, tasks, skipTasks),
             })),
         {
@@ -411,7 +411,7 @@ export async function runTask (
     const listr = new Listr(
         Object.entries(servers)
             .map(([ name, server ]) => ({
-                title: ` ${name} (${server.host}) `,
+                title: `${taskDef.name} to ${name} (${server.host})`,
                 task: () : Listr => buildServerListr(
                     name,
                     server,

@@ -30,8 +30,6 @@ export class CustomRenderer
         rendererOptions: new Map<string, any>(),
         rendererTaskOptions: new Map<string, any>(),
     };
-    private skipped : Set<string> = new Set();
-    private pendingStart : Map<string, () => void> = new Map();
     
     constructor (tasks : any, options : any)
     {
@@ -92,25 +90,18 @@ export class CustomRenderer
                 const title = this.formatTitle(task.title);
                 
                 if (state === ListrTaskState.STARTED) {
-                    this.pendingStart.set(task.id, () => {
-                        this.logger.log(ListrLogLevels.STARTED, title);
-                    });
+                    this.logger.log(ListrLogLevels.STARTED, title);
                 }
-                else if (state === ListrTaskState.COMPLETED) {
-                    if (this.skipped.has(task.id)) return;
-                    
-                    this.pendingStart.get(task.id)?.();
-                    this.pendingStart.delete(task.id);
-                    
-                    const timer = rendererTaskOptions?.timer;
-                    this.logger.log(ListrLogLevels.COMPLETED, title, timer && {
-                        suffix: {
-                            ...timer,
-                            condition: !!task.message?.duration && timer.condition,
-                            args: [ task.message.duration ],
-                        },
-                    });
-                }
+                    // else if (state === ListrTaskState.COMPLETED) {
+                    //     const timer = rendererTaskOptions?.timer;
+                    //     this.logger.log(ListrLogLevels.COMPLETED, title, timer && {
+                    //         suffix: {
+                    //             ...timer,
+                    //             condition: !!task.message?.duration && timer.condition,
+                    //             args: [ task.message.duration ],
+                    //         },
+                    //     });
+                // }
                 else if (state === ListrTaskState.PROMPT) {
                     this.logger.process.hijack();
                     task.on(ListrTaskEventType.PROMPT, (prompt : any) => {
@@ -124,8 +115,6 @@ export class CustomRenderer
             });
             
             task.on(ListrTaskEventType.OUTPUT, (output : any) => {
-                this.pendingStart.get(task.id)?.();
-                this.pendingStart.delete(task.id);
                 this.logger.log(ListrLogLevels.OUTPUT, output);
             });
             
@@ -133,8 +122,6 @@ export class CustomRenderer
                 const title = this.formatTitle(task.title);
                 
                 if (message.error) {
-                    this.pendingStart.get(task.id)?.();
-                    this.pendingStart.delete(task.id);
                     this.logger.log(ListrLogLevels.FAILED, title, {
                         suffix: {
                             field: `${ListrLogLevels.FAILED}: ${message.error}`,
@@ -143,17 +130,11 @@ export class CustomRenderer
                     });
                 }
                 else if (message.skip) {
-                    this.pendingStart.delete(task.id);
-                    this.skipped.add(task.id);
                     process.stdout.write(
-                        chalk.gray('Task ')
-                        + chalk.cyan(task.title)
-                        + chalk.gray(` skipped: ${message.skip}\n`),
+                        chalk.gray(`Skipped: ${message.skip}\n`),
                     );
                 }
                 else if (message.rollback) {
-                    this.pendingStart.get(task.id)?.();
-                    this.pendingStart.delete(task.id);
                     this.logger.log(ListrLogLevels.ROLLBACK, title, {
                         suffix: {
                             field: `${ListrLogLevels.ROLLBACK}: ${message.rollback}`,
@@ -162,8 +143,6 @@ export class CustomRenderer
                     });
                 }
                 else if (message.retry) {
-                    this.pendingStart.get(task.id)?.();
-                    this.pendingStart.delete(task.id);
                     this.logger.log(ListrLogLevels.RETRY, title, {
                         suffix: {
                             field: `${ListrLogLevels.RETRY}:${message.retry.count}`,
@@ -206,7 +185,5 @@ export class CustomRenderer
     {
         this.cache.rendererOptions.delete(task.id);
         this.cache.rendererTaskOptions.delete(task.id);
-        this.skipped.delete(task.id);
-        this.pendingStart.delete(task.id);
     }
 }

@@ -18,7 +18,7 @@ export const clearTargetTask : TaskFn = async(
     console.log();
     
     if (!confirmed) {
-        task.skip('Skipped clearing target');
+        task.skip('User cancelled');
         return;
     }
     
