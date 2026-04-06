@@ -31,6 +31,7 @@ export const uploadTask : TaskFn = async(ctx : TaskContext, ph : Placeholders) =
         files,
         {
             delete: true,
+            ...ctx.taskConfig,
         },
     );
     console.log(chalk.grey(command));

@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { DeployerConfig } from './def.js';
 import { Exception } from './utils/Exception.js';
+import { set } from 'lodash-es';
 
 const CONFIG_FILENAME = 'deployer.config.ts';
 
@@ -26,7 +27,10 @@ export function findConfigFile (startDir : string = process.cwd()) : string
     );
 }
 
-export async function loadConfig (configPath? : string) : Promise<DeployerConfig>
+export async function loadConfig (
+    configPath? : string,
+    configOverrides? : string[],
+) : Promise<DeployerConfig>
 {
     const resolvedPath = configPath ?? findConfigFile();
     const absolutePath = path.resolve(resolvedPath);
@@ -48,6 +52,32 @@ export async function loadConfig (configPath? : string) : Promise<DeployerConfig
             'Config must define at least one server',
             1774741913430,
         );
+    }
+    
+    // override task config if provided via CLI
+    if (configOverrides) {
+        for (const configOverride of configOverrides) {
+            const [ path, value ] = configOverride.split('=');
+            
+            const pathParts = path.split('.');
+            if (pathParts.length < 2) {
+                console.warn(`Invalid task config override key: ${path}`);
+                continue;
+            }
+            
+            const [ taskName, ...configPathParts ] = pathParts;
+            const taskDef = config.tasks?.[taskName];
+            if (!taskDef) {
+                console.warn(`Task not found for config override: ${taskName}`);
+                continue;
+            }
+            
+            if (!taskDef.config) {
+                taskDef.config = {};
+            }
+            
+            set(taskDef.config, configPathParts, value);
+        }
     }
     
     return config;

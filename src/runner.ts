@@ -351,11 +351,17 @@ function buildServerListr (
 }
 
 
+export type RunTaskOrScenerioOptions = {
+    skip? : string[];
+    taskConfigs? : Record<string, any>;
+}
+
+
 export async function runScenario (
     config : DeployerConfig,
     scenarioName : string,
     serverNames? : string[],
-    options : { skip? : string[] } = {},
+    options : RunTaskOrScenerioOptions = {},
 ) : Promise<void>
 {
     const scenarioDef = config.scenarios?.[scenarioName];
@@ -392,7 +398,7 @@ export async function runTask (
     config : DeployerConfig,
     taskName : string,
     serverNames? : string[],
-    options : { skip? : string[] } = {},
+    options : RunTaskOrScenerioOptions = {},
 ) : Promise<void>
 {
     const allTasks = config.tasks ?? {};

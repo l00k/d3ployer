@@ -1,4 +1,4 @@
-import type { DockerComposeConfig } from '$/def.js';
+import type { DockerComposeConfig } from '../../def.js';
 
 export function buildDockerComposeTestCmd (dockerComposeConfig : DockerComposeConfig | false) : string
 {

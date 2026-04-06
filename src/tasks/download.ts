@@ -36,6 +36,7 @@ export const downloadTask : TaskFn = async(ctx : TaskContext, ph : Placeholders)
         files,
         {
             delete: false,
+            ...ctx.taskConfig,
         },
     );
     console.log(chalk.grey(command));

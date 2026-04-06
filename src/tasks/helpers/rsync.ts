@@ -1,4 +1,4 @@
-import type { FilesConfig , ServerConfig } from '$/def.js';
+import type { FilesConfig, ServerConfig } from '../../def.js';
 
 export type RsyncOptions = {
     delete? : boolean;
@@ -26,7 +26,7 @@ export function buildRsyncCommand (
     }
     
     if (options.dryRun) {
-        args.push('--delete');
+        args.push('--dry-run');
     }
     
     // ssh shell

@@ -8,8 +8,9 @@ import { runScenario, runTask } from './runner.js';
 const program = new Command()
     .name('deployer')
     .description('TypeScript deployment tool')
-    .option('-c, --config <path>', 'path to deployer.config.ts')
+    .option('-p, --project <path>', 'path to deployer.config.ts')
     .option('--skip <tasks>', 'comma-separated list of tasks to skip')
+    .option('-c, --config <taskConfig...>', 'option to override task config (format: path.to.entity=value)')
 ;
 
 program
@@ -18,7 +19,8 @@ program
     .action(async(name : string, servers : string[]) => {
         try {
             const opts = program.opts();
-            const config = await loadConfig(opts.config);
+            const config = await loadConfig(opts.project, opts.config);
+            
             const serverList = servers.length > 0 ? servers : undefined;
             const skipTasks = opts.skip
                 ? opts.skip.split(',').map((s : string) => s.trim()).filter(Boolean)
@@ -41,7 +43,8 @@ program
     .description('list available scenarios, tasks and servers')
     .action(async() => {
         try {
-            const config = await loadConfig(program.opts().config);
+            const opts = program.opts();
+            const config = await loadConfig(opts.project, opts.config);
             
             console.log(chalk.bold('\nScenarios:'));
             const scenarios = config.scenarios ?? {};

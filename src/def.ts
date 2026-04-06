@@ -60,6 +60,14 @@ export type DockerComposeConfig = {
     logs : ConfigOrDisable<LogsConfig>,
 }
 
+export interface TaskDef
+{
+    name : string;
+    task : TaskFn;
+    skip? : TaskSkipFn;
+    config? : any;
+}
+
 export interface DeployerConfig
 {
     rootDir : string;
@@ -124,14 +132,6 @@ export type TaskSkipFn = (
     ctx : TaskContext,
     ph : Placeholders,
 ) => Promise<boolean | string> | boolean | string;
-
-export interface TaskDef
-{
-    name : string;
-    task : TaskFn;
-    skip? : TaskSkipFn;
-    config? : any;
-}
 
 export type TaskInput = TaskFn | {
     name? : string;
