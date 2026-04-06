@@ -55,15 +55,28 @@ dpl list                            # list available scenarios, tasks, and serve
 ## CLI
 
 ```
-dpl <name> [servers...]    Run a scenario or task
-dpl list                   List scenarios, tasks, and servers
+dpl <name> [servers...]         Run a scenario or task
+dpl list                        List scenarios, tasks, and servers
 
 Options:
-  -c, --config <path>      Path to deployer.config.ts
-  --skip <tasks>           Comma-separated list of tasks to skip
+  -p, --project <path>          Path to deployer.config.ts
+  --skip <tasks>                Comma-separated list of tasks to skip
+  --config <task.key=value...>  Override task config values at runtime
 ```
 
 If `<name>` matches a scenario, it runs all tasks in that scenario sequentially. Otherwise it runs the matching task directly.
+
+### Runtime config overrides
+
+Use `--config` to override individual task config values without editing `deployer.config.ts`. Values are automatically coerced to `boolean` (`true`/`false`) or `number` where applicable.
+
+```bash
+dpl deploy --config download.dryRun=true
+dpl upload --config upload.delete=false
+dpl deploy --config myTask.someKey=hello --config myTask.retries=3
+```
+
+The format is `taskName.path.to.key=value`, where `taskName` is the task's key in the config.
 
 ## Config
 

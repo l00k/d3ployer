@@ -7,13 +7,13 @@ A TypeScript-based SSH deployment CLI tool. Runs tasks/scenarios against remote 
 ## Key source files
 
 - `src/bin.ts` — shebang entry point (package.json `bin` exposes as `dpl`)
-- `src/cli.ts` — Commander CLI: `deployer <name> [servers...]`, `deployer list`, supports `-c, --config <path>`
+- `src/cli.ts` — Commander CLI: `deployer <name> [servers...]`, `deployer list`, supports `-p, --project <path>`, `--skip <tasks>`, `--config <task.key=value...>`
 - `src/config.ts` — `defineConfig()` helper, applies server defaults, merges defaultTasks, converts camelCase task/scenario keys to colon:case
-- `src/configLoader.ts` — walks up directory tree to find `deployer.config.ts`, dynamic-imports it
+- `src/configLoader.ts` — walks up directory tree to find `deployer.config.ts`, dynamic-imports it, applies `--config` overrides (with type coercion)
 - `src/connection.ts` — `createSSHConnection()` using ssh2-promise; supports key/password/agent auth
 - `src/defaultTasks.ts` — built-in tasks: `upload`, `download`, `symlinks`, `depInstall`, `pm2Setup`, `dockerSetup`, `clearTarget`, `printDeployment`, `streamLogs`
 - `src/def.ts` — all TypeScript types/interfaces (ServerConfig, TaskFn, TaskContext, DeployerConfig, etc.)
-- `src/runner.ts` — `runScenario()` and `runTask()` using Listr2; connects SSH per server, runs tasks sequentially
+- `src/runner.ts` — `runScenario()` and `runTask()` using Listr2; connects SSH per server, runs tasks sequentially; exports `RunTaskOrScenarioOptions`
 - `src/index.ts` — public API re-exports
 - `src/utils/Exception.ts` — custom Exception class with error code, reason chain, and stack rewriting
 - `src/utils/index.ts` — barrel export for utils
@@ -33,9 +33,8 @@ defineConfig({
   files: { basePath, include, exclude },
   symlinks: [{ path, target }],
   packageManager: { manager: 'npm' | 'yarn' | 'pnpm', productionOnly: true },
-  pm2: true,
-  dockerCompose: true,
-  logs: { time: 3 },
+  pm2: { logs: { time: 3, lines: 25 } },                           // or: false
+  dockerCompose: { configFiles: [...], logs: { time: 3, lines: 25 } }, // or: false
   tasks: { myTask: async (ctx, ph) => { ... } },
   scenarios: { deploy: ['upload', 'symlinks', 'myTask'] },
 })
@@ -55,7 +54,7 @@ Task keys are converted from camelCase to colon:case via `camelToColonCase()`. E
 - `docker:setup` — run docker compose up if compose file exists (skips if `dockerCompose: false` or no compose file)
 - `clear:target` — rm -rf deployPath (with interactive confirmation via @inquirer/confirm)
 - `print:deployment` — show date, directory listing, and disk usage
-- `stream:logs` — stream PM2/Docker Compose logs for a configured duration (skips if `logs: false` or no PM2/Docker detected)
+- `stream:logs` — stream PM2/Docker Compose logs for a configured duration (skips if `pm2.logs: false` / `dockerCompose.logs: false` or no PM2/Docker detected)
 
 ## Default scenario
 

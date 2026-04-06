@@ -1,8 +1,8 @@
+import { set } from 'lodash-es';
 import fs from 'node:fs';
 import path from 'node:path';
 import type { DeployerConfig } from './def.js';
 import { Exception } from './utils/Exception.js';
-import { set } from 'lodash-es';
 
 const CONFIG_FILENAME = 'deployer.config.ts';
 
@@ -57,15 +57,22 @@ export async function loadConfig (
     // override task config if provided via CLI
     if (configOverrides) {
         for (const configOverride of configOverrides) {
-            const [ path, value ] = configOverride.split('=');
-            
-            const pathParts = path.split('.');
-            if (pathParts.length < 2) {
-                console.warn(`Invalid task config override key: ${path}`);
+            const eqIdx = configOverride.indexOf('=');
+            if (eqIdx === -1) {
+                console.warn(`Invalid task config override (missing '='): ${configOverride}`);
                 continue;
             }
             
-            const [ taskName, ...configPathParts ] = pathParts;
+            const overrideKey = configOverride.slice(0, eqIdx);
+            const rawValue = configOverride.slice(eqIdx + 1);
+            
+            const keyParts = overrideKey.split('.');
+            if (keyParts.length < 2) {
+                console.warn(`Invalid task config override key: ${overrideKey}`);
+                continue;
+            }
+            
+            const [ taskName, ...configPathParts ] = keyParts;
             const taskDef = config.tasks?.[taskName];
             if (!taskDef) {
                 console.warn(`Task not found for config override: ${taskName}`);
@@ -75,6 +82,15 @@ export async function loadConfig (
             if (!taskDef.config) {
                 taskDef.config = {};
             }
+            
+            const value = rawValue === 'true'
+                ? true
+                : rawValue === 'false'
+                    ? false
+                    : rawValue !== '' && !isNaN(Number(rawValue))
+                        ? Number(rawValue)
+                        : rawValue
+            ;
             
             set(taskDef.config, configPathParts, value);
         }
