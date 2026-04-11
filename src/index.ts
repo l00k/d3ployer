@@ -17,7 +17,7 @@ export type {
     TaskSkipFn,
 } from './def.js';
 
-export { defineConfig } from './config.js';
+export { defineConfig, defineTask } from './config.js';
 export { runScenario, runTask } from './runner.js';
 export { loadConfig, findConfigFile } from './configLoader.js';
 export { buildRsyncCommand, downloadSkip, downloadTask } from './tasks/index.js';

@@ -8,12 +8,12 @@ A TypeScript-based SSH deployment CLI tool. Runs tasks/scenarios against remote 
 
 - `src/bin.ts` — shebang entry point (package.json `bin` exposes as `dpl`)
 - `src/cli.ts` — Commander CLI: `deployer <name> [servers...]`, `deployer list`, supports `-p, --project <path>`, `--skip <tasks>`, `--config <task.key=value...>`
-- `src/config.ts` — `defineConfig()` helper, applies server defaults, merges defaultTasks, converts camelCase task/scenario keys to colon:case
-- `src/configLoader.ts` — walks up directory tree to find `deployer.config.ts`, dynamic-imports it, applies `--config` overrides (with type coercion)
+- `src/config.ts` — `defineConfig()` and `defineTask<C>()` helpers, applies server defaults, merges defaultTasks, converts camelCase task/scenario keys to colon:case
+- `src/configLoader.ts` — walks up directory tree to find `deployer.config.ts`, dynamic-imports it, applies `--config` CLI overrides (with type coercion for booleans/numbers)
 - `src/connection.ts` — `createSSHConnection()` using ssh2-promise; supports key/password/agent auth
 - `src/defaultTasks.ts` — built-in tasks: `upload`, `download`, `symlinks`, `depInstall`, `pm2Setup`, `dockerSetup`, `clearTarget`, `printDeployment`, `streamLogs`
-- `src/def.ts` — all TypeScript types/interfaces (ServerConfig, TaskFn, TaskContext, DeployerConfig, etc.)
-- `src/runner.ts` — `runScenario()` and `runTask()` using Listr2; connects SSH per server, runs tasks sequentially; exports `RunTaskOrScenarioOptions`
+- `src/def.ts` — all TypeScript types/interfaces (ServerConfig, TaskFn<C>, TaskContext<C>, DeployerConfig, FilesConfigBase, TaskConfigBase<C>, etc.)
+- `src/runner.ts` — `runScenario()` and `runTask()` using Listr2; connects SSH per server, runs tasks sequentially; exports `RunTaskOrScenarioOptions` type
 - `src/index.ts` — public API re-exports
 - `src/utils/Exception.ts` — custom Exception class with error code, reason chain, and stack rewriting
 - `src/utils/index.ts` — barrel export for utils
@@ -30,7 +30,7 @@ A TypeScript-based SSH deployment CLI tool. Runs tasks/scenarios against remote 
 ```ts
 defineConfig({
   servers: { prod: { host, deployPath, packageManager?, initCmd?, ... } },
-  files: { basePath, include, exclude },
+  files: { localPath, remotePath?, include, exclude },  // or an array of FilesConfigBase
   symlinks: [{ path, target }],
   packageManager: { manager: 'npm' | 'yarn' | 'pnpm', productionOnly: true },
   pm2: { logs: { time: 3, lines: 25 } },                           // or: false
@@ -46,8 +46,8 @@ Task keys are converted from camelCase to colon:case via `camelToColonCase()`. E
 
 ## Built-in tasks
 
-- `upload` — rsync files to remote (skips if no `files` config)
-- `download` — rsync files from remote (uses `taskConfig` for files config)
+- `upload` — rsync files to remote, supports single or array of FilesConfigBase entries (skips if no `files` config)
+- `download` — rsync files from remote, supports single or array of FilesConfigBase entries (uses `taskConfig` for files config)
 - `symlinks` — create symlinks on remote (skips if no `symlinks` config)
 - `dep:install` — run package manager install (npm/yarn/pnpm, respects `packageManager` config at global and per-server level)
 - `pm2:setup` — start PM2 processes if pm2.config.* exists (skips if `pm2: false` or no config file)
@@ -55,6 +55,17 @@ Task keys are converted from camelCase to colon:case via `camelToColonCase()`. E
 - `clear:target` — rm -rf deployPath (with interactive confirmation via @inquirer/confirm)
 - `print:deployment` — show date, directory listing, and disk usage
 - `stream:logs` — stream PM2/Docker Compose logs for a configured duration (skips if `pm2.logs: false` / `dockerCompose.logs: false` or no PM2/Docker detected)
+
+## FilesConfig
+
+`FilesConfig` can be a single `FilesConfigBase` or an array. Each entry has:
+- `localPath?` — local directory path (relative to rootDir or absolute)
+- `remotePath?` — remote directory path (relative to deployPath or absolute)
+- `include?` / `exclude?` — rsync patterns
+
+## Generic TaskContext and TaskFn
+
+`TaskContext<C>` and `TaskFn<C>` are generic — `C` types `ctx.taskConfig`. Use `defineTask<C>()` for type-safe task definitions with typed config.
 
 ## Default scenario
 

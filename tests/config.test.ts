@@ -109,12 +109,12 @@ describe('config builders', () => {
             const config = defineConfig({
                 servers: { s1: { host: 'h', deployPath: '/d' } },
                 files: {
-                    basePath: './dist',
+                    localPath: './dist',
                     include: [ '**/*.js' ],
                     exclude: [ 'node_modules' ],
                 },
             });
-            expect(config.files!.basePath).to.equal('./dist');
+            expect(config.files!.localPath).to.equal('./dist');
             expect(config.files!.include).to.deep.equal([ '**/*.js' ]);
         });
 

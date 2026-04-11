@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 import path from 'node:path';
-import type { FilesConfig, Placeholders, TaskContext, TaskFn, TaskSkipFn } from '../def.js';
+import type { FilesConfig, FilesConfigBase, Placeholders, TaskContext, TaskFn, TaskSkipFn } from '../def.js';
 import { Exception } from '../utils/index.js';
 import { buildRsyncCommand } from './helpers/rsync.js';
 
@@ -13,33 +13,47 @@ export const downloadSkip : TaskSkipFn = (ctx : TaskContext) => {
         ;
 };
 
-export const downloadTask : TaskFn = async(ctx : TaskContext, ph : Placeholders) => {
-    const files : FilesConfig = ctx.taskConfig!;
-    if (!files) {
+export const downloadTask : TaskFn<FilesConfig> = async(
+    ctx : TaskContext<FilesConfig>,
+    ph : Placeholders,
+) => {
+    if (!ctx.taskConfig) {
         throw new Exception(
             'No files configuration provided in task config',
             1784523741234,
         );
     }
     
-    const localBase = files.basePath?.startsWith('/')
-        ? files.basePath
-        : path.resolve(ctx.config.rootDir, files.basePath ?? '.');
-    const remotePath = ph.deployPath;
-    const source = `${ctx.server.username}@${ctx.server.host}:${remotePath}/`;
-    const dest = localBase.endsWith('/') ? localBase : localBase + '/';
+    const filesArray : FilesConfigBase[] = ctx.taskConfig instanceof Array
+        ? ctx.taskConfig
+        : [ ctx.taskConfig ]
+    ;
     
-    const command = buildRsyncCommand(
-        ctx.server,
-        source,
-        dest,
-        files,
-        {
-            delete: false,
-            ...ctx.taskConfig,
-        },
-    );
-    console.log(chalk.grey(command));
-    
-    await ctx.runLocal(command);
+    for (const filesEntry of filesArray) {
+        const localBase = filesEntry.localPath?.startsWith('/')
+            ? filesEntry.localPath
+            : path.resolve(ctx.config.rootDir, filesEntry.localPath ?? '.')
+        ;
+        const remotePath = filesEntry.remotePath?.startsWith('/')
+            ? filesEntry.remotePath
+            : path.join(ctx.server.deployPath, filesEntry.remotePath ?? '.')
+        ;
+        
+        const source = `${ctx.server.username}@${ctx.server.host}:${remotePath}/`;
+        const dest = localBase.endsWith('/') ? localBase : localBase + '/';
+        
+        const command = buildRsyncCommand(
+            ctx.server,
+            source,
+            dest,
+            filesEntry,
+            {
+                delete: false,
+                ...ctx.taskConfig,
+            },
+        );
+        console.log(chalk.grey(command));
+        
+        await ctx.runLocal(command);
+    }
 };

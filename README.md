@@ -25,7 +25,7 @@ export default defineConfig({
     },
   },
   files: {
-    basePath: './dist',
+    localPath: './dist',
     exclude: ['node_modules', '.git'],
   },
   symlinks: [
@@ -103,10 +103,20 @@ Configure rsync file upload.
 
 ```ts
 files: {
-  basePath: './dist',       // local directory to sync (default: '.')
-  include: ['src/**'],      // rsync include patterns
-  exclude: ['node_modules'],// rsync exclude patterns
+  localPath: './dist',        // local directory to sync (relative to rootDir or absolute, default: '.')
+  remotePath: 'app',          // remote directory (relative to deployPath or absolute, default: deployPath)
+  include: ['src/**'],        // rsync include patterns
+  exclude: ['node_modules'],  // rsync exclude patterns
 }
+```
+
+Or as an array of entries to sync multiple directories:
+
+```ts
+files: [
+  { localPath: './dist', remotePath: 'app', exclude: ['*.map'] },
+  { localPath: './config', remotePath: 'config' },
+]
 ```
 
 ### `symlinks`
@@ -188,9 +198,26 @@ tasks: {
 }
 ```
 
+Use `defineTask` for type-safe task definitions with a typed config:
+
+```ts
+import { defineConfig, defineTask } from 'd3ployer';
+
+export default defineConfig({
+  tasks: {
+    myTask: defineTask<{ retries: number }>({
+      task: async (ctx) => {
+        const retries = ctx.taskConfig!.retries; // typed as number
+      },
+      config: { retries: 3 },
+    }),
+  },
+});
+```
+
 Task keys are auto-converted from camelCase to colon:case (e.g. `depInstall` becomes `dep:install`).
 
-**TaskContext** provides:
+**TaskContext\<C\>** provides:
 - `run(cmd, options?)` - execute a command on the remote server (auto cd's to `deployPath`)
 - `test(cmd)` - execute a command on the remote server, returns `boolean`
 - `runLocal(cmd, options?)` - execute a command locally
@@ -198,7 +225,7 @@ Task keys are auto-converted from camelCase to colon:case (e.g. `depInstall` bec
 - `server` - current server config (includes `name`)
 - `ssh` - SSH2Promise connection
 - `config` - full deployer config
-- `taskConfig` - per-task config from task definition
+- `taskConfig` - per-task config from task definition (typed as `C` when using `defineTask<C>`)
 
 **RunOptions** (for `run` and `runLocal`):
 - `printOutput` - print stdout/stderr (default: `true`)
@@ -234,8 +261,8 @@ scenarios: {
 
 | Task                | Description                                              |
 | ------------------- | -------------------------------------------------------- |
-| `upload`            | Rsync files to the remote server                         |
-| `download`          | Rsync files from the remote server (uses task config)    |
+| `upload`            | Rsync files to the remote server (supports multiple file entries) |
+| `download`          | Rsync files from the remote server (uses task config, supports multiple file entries) |
 | `symlinks`          | Create configured symlinks on the remote server          |
 | `install:packages`  | Install dependencies via npm/yarn/pnpm                   |
 | `setup:pm2`         | Start/restart PM2 processes (auto-detects pm2.config.*)  |

@@ -7,6 +7,7 @@ import type {
     ScenarioInput,
     ServerConfig,
     ServerConfigInput,
+    TaskConfigBase,
     TaskDef,
     TaskInput,
 } from './def.js';
@@ -52,6 +53,11 @@ function normalizeScenario (key : string, input : ScenarioInput) : ScenarioDef
         name: input.name,
         tasks: input.tasks,
     };
+}
+
+export function defineTask<C> (input : TaskConfigBase<C>) : TaskConfigBase<C>
+{
+    return input;
 }
 
 export function defineConfig (input : DeployerConfigInput) : DeployerConfig

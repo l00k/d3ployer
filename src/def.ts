@@ -30,12 +30,16 @@ export interface ServerConfig
 
 export type ServerConfigInput = Partial<ServerConfig> & Pick<ServerConfig, 'host' | 'deployPath'>;
 
-export interface FilesConfig
+export interface FilesConfigBase
 {
-    basePath? : string;
+    localPath? : string;
+    remotePath? : string;
+    
     include? : string[];
     exclude? : string[];
 }
+
+export type FilesConfig = FilesConfigBase | FilesConfigBase[];
 
 export interface SymlinkConfig
 {
@@ -110,7 +114,7 @@ export type RunOptions = {
     ignoreError? : boolean;
 }
 
-export interface TaskContext
+export interface TaskContext<C = any>
 {
     server : ServerConfig & { name : string };
     ssh : SSH2Promise;
@@ -119,11 +123,11 @@ export interface TaskContext
     testLocal : (cmd : string) => Promise<boolean>;
     run : (cmd : string, options? : RunOptions) => Promise<ExecResult>;
     test : (cmd : string) => Promise<boolean>;
-    taskConfig? : any;
+    taskConfig? : C;
 }
 
-export type TaskFn = (
-    ctx : TaskContext,
+export type TaskFn<C = any> = (
+    ctx : TaskContext<C>,
     ph : Placeholders,
     task : ListrTaskWrapper<any, any, any>,
 ) => Promise<void>;
@@ -133,12 +137,21 @@ export type TaskSkipFn = (
     ph : Placeholders,
 ) => Promise<boolean | string> | boolean | string;
 
-export type TaskInput = TaskFn | {
+
+export type TaskConfigBase<C = any> = {
     name? : string;
-    task : TaskFn;
+    task : TaskFn<C>;
     skip? : TaskSkipFn,
-    config? : any;
+    config? : C;
 };
+
+export type TaskConfig<T = any> = T extends TaskFn<infer C>
+    ? TaskConfigBase<C>
+    : TaskConfigBase
+    ;
+
+export type TaskInput<C = any> = TaskFn<C> | TaskConfig<C>;
+
 
 export interface ScenarioDef
 {
