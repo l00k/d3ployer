@@ -11,7 +11,6 @@ import { uploadSkip, uploadTask } from './upload.js';
 
 
 export { buildRsyncCommand } from './helpers/rsync.js';
-export type { RsyncOptions } from './helpers/rsync.js';
 export { downloadSkip, downloadTask } from './download.js';
 
 

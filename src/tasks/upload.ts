@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 import path from 'node:path';
-import type { FilesConfigBase, Placeholders, TaskContext, TaskFn, TaskSkipFn } from '../def.js';
+import type { FilesConfig , FilesConfigBase, Placeholders, TaskContext, TaskFn, TaskSkipFn } from '../def.js';
 import { buildRsyncCommand } from './helpers/rsync.js';
 
 
@@ -12,13 +12,15 @@ export const uploadSkip : TaskSkipFn = (ctx : TaskContext) => {
         ;
 };
 
-export const uploadTask : TaskFn = async(
-    ctx : TaskContext,
+export const uploadTask : TaskFn<FilesConfig> = async(
+    ctx : TaskContext<FilesConfig>,
     ph : Placeholders,
 ) => {
-    const filesArray : FilesConfigBase[] = ctx.config.files instanceof Array
-        ? ctx.config.files
-        : [ ctx.config.files ]
+    const configSource = ctx.taskConfig ?? ctx.config.files;
+    
+    const filesArray : FilesConfigBase[] = configSource instanceof Array
+        ? configSource
+        : [ configSource ]
     ;
     
     for (const filesEntry of filesArray) {
@@ -43,7 +45,7 @@ export const uploadTask : TaskFn = async(
             filesEntry,
             {
                 delete: true,
-                ...ctx.taskConfig,
+                ...filesEntry.rsync,
             },
         );
         console.log(chalk.grey(command));

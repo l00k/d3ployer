@@ -30,6 +30,12 @@ export interface ServerConfig
 
 export type ServerConfigInput = Partial<ServerConfig> & Pick<ServerConfig, 'host' | 'deployPath'>;
 
+
+export type RsyncOptions = {
+    delete? : boolean;
+    dryRun? : boolean;
+}
+
 export interface FilesConfigBase
 {
     localPath? : string;
@@ -37,6 +43,8 @@ export interface FilesConfigBase
     
     include? : string[];
     exclude? : string[];
+    
+    rsync? : RsyncOptions,
 }
 
 export type FilesConfig = FilesConfigBase | FilesConfigBase[];

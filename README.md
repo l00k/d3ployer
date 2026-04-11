@@ -119,6 +119,19 @@ files: [
 ]
 ```
 
+Each entry can also include per-entry rsync options:
+
+```ts
+files: {
+  localPath: './dist',
+  exclude: ['node_modules'],
+  rsync: {
+    delete: false,  // don't delete extra files on remote (default: true for upload, false for download)
+    dryRun: true,   // preview changes without applying them
+  },
+}
+```
+
 ### `symlinks`
 
 Create symlinks on the remote server.

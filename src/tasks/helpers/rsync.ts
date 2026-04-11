@@ -1,9 +1,4 @@
-import type { FilesConfigBase, ServerConfig } from '../../def.js';
-
-export type RsyncOptions = {
-    delete? : boolean;
-    dryRun? : boolean;
-}
+import type { FilesConfigBase, RsyncOptions, ServerConfig } from '../../def.js';
 
 export function buildRsyncCommand (
     server : ServerConfig,

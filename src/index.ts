@@ -5,6 +5,7 @@ export type {
     FilesConfig,
     LogsConfig,
     Placeholders,
+    RsyncOptions,
     ScenarioDef,
     ScenarioInput,
     ServerConfig,
@@ -21,4 +22,3 @@ export { defineConfig, defineTask } from './config.js';
 export { runScenario, runTask } from './runner.js';
 export { loadConfig, findConfigFile } from './configLoader.js';
 export { buildRsyncCommand, downloadSkip, downloadTask } from './tasks/index.js';
-export type { RsyncOptions } from './tasks/index.js';

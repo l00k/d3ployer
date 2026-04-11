@@ -49,7 +49,7 @@ export const downloadTask : TaskFn<FilesConfig> = async(
             filesEntry,
             {
                 delete: false,
-                ...ctx.taskConfig,
+                ...filesEntry.rsync,
             },
         );
         console.log(chalk.grey(command));
