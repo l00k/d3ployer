@@ -55,7 +55,13 @@ export interface SymlinkConfig
     target : string;
 }
 
-export type ConfigOrDisable<T> = T | false;
+type RecursivePartial<T> = {
+    [P in keyof T]? : T[P] extends object
+        ? RecursivePartial<T[P]>
+        : T[P];
+};
+
+export type ConfigInputOrDisable<T> = RecursivePartial<T> | false;
 
 export interface LogsConfig
 {
@@ -64,12 +70,12 @@ export interface LogsConfig
 }
 
 export type Pm2Config = {
-    logs : ConfigOrDisable<LogsConfig>,
+    logs : ConfigInputOrDisable<LogsConfig>,
 }
 
 export type DockerComposeConfig = {
     configFiles : string[];
-    logs : ConfigOrDisable<LogsConfig>,
+    logs : ConfigInputOrDisable<LogsConfig>,
 }
 
 export interface TaskDef
@@ -86,9 +92,9 @@ export interface DeployerConfig
     servers : Record<string, ServerConfig>;
     files? : FilesConfig;
     symlinks? : SymlinkConfig[];
-    packageManager? : ConfigOrDisable<PackageManagerConfig>;
-    pm2? : ConfigOrDisable<Pm2Config>;
-    dockerCompose? : ConfigOrDisable<DockerComposeConfig>;
+    packageManager? : ConfigInputOrDisable<PackageManagerConfig>;
+    pm2? : ConfigInputOrDisable<Pm2Config>;
+    dockerCompose? : ConfigInputOrDisable<DockerComposeConfig>;
     tasks? : Record<string, TaskDef>;
     scenarios? : Record<string, ScenarioDef>;
 }
